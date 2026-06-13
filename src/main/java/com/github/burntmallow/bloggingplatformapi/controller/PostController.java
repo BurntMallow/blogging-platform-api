@@ -2,8 +2,11 @@ package com.github.burntmallow.bloggingplatformapi.controller;
 
 import org.springframework.web.bind.annotation.RestController;
 
-import com.github.burntmallow.bloggingplatformapi.entity.Post;
+import com.github.burntmallow.bloggingplatformapi.dto.PostRequest;
+import com.github.burntmallow.bloggingplatformapi.dto.PostResponse;
 import com.github.burntmallow.bloggingplatformapi.service.PostService;
+
+import jakarta.validation.Valid;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -22,8 +25,8 @@ public class PostController {
     }
 
     @PostMapping
-    public ResponseEntity<Post> createPost(@RequestBody Post newPost) {
-        Post savedPost = postService.createPost(newPost);
+    public ResponseEntity<PostResponse> createPost(@Valid @RequestBody PostRequest newPostRequest) {
+        PostResponse savedPost = postService.createPost(newPostRequest);
         return new ResponseEntity<>(savedPost, HttpStatus.CREATED);
     }
 }
