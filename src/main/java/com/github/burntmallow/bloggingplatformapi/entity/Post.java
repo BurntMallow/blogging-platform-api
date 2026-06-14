@@ -1,9 +1,21 @@
 package com.github.burntmallow.bloggingplatformapi.entity;
 
-import jakarta.persistence.*;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.HashSet;
+import java.util.Set;
+
+import jakarta.persistence.CascadeType;
+import jakarta.persistence.Column;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.persistence.JoinColumn;
+import jakarta.persistence.JoinTable;
+import jakarta.persistence.ManyToMany;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
+import jakarta.persistence.Table;
 
 @Entity
 @Table(name = "posts")
@@ -21,10 +33,9 @@ public class Post {
 
     private String category;
 
-    @ElementCollection
-    @CollectionTable(name = "post_tags", joinColumns = @JoinColumn(name = "post_id"))
-    @Column(name = "tag")
-    private List<String> tags = new ArrayList<>();
+    @ManyToMany(cascade = { CascadeType.PERSIST, CascadeType.MERGE })
+    @JoinTable(name = "post_tags", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    private Set<Tag> tags = new HashSet<>();
 
     @Column(name = "created_at", nullable = false, updatable = false)
     private LocalDateTime createdAt;
@@ -46,11 +57,10 @@ public class Post {
     public Post() {
     }
 
-    public Post(String title, String content, String category, List<String> tags) {
+    public Post(String title, String content, String category) {
         this.title = title;
         this.content = content;
         this.category = category;
-        this.tags = tags;
     }
 
     public Long getId() {
@@ -85,12 +95,8 @@ public class Post {
         this.category = category;
     }
 
-    public List<String> getTags() {
+    public Set<Tag> getTags() {
         return tags;
-    }
-
-    public void setTags(List<String> tags) {
-        this.tags = tags;
     }
 
     public LocalDateTime getCreatedAt() {

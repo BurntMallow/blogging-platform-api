@@ -1,14 +1,14 @@
 package com.github.burntmallow.bloggingplatformapi.dto;
 
 import java.time.LocalDateTime;
-import java.util.List;
+import java.util.Set;
 
 public record PostResponse(
         Long id,
         String title,
         String content,
         String category,
-        List<String> tags,
+        Set<String> tags,
         LocalDateTime createdAt,
         LocalDateTime updatedAt) {
 
