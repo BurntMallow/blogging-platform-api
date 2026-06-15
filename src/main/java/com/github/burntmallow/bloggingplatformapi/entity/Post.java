@@ -1,10 +1,10 @@
 package com.github.burntmallow.bloggingplatformapi.entity;
 
 import java.time.LocalDateTime;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Set;
 
-import jakarta.persistence.CascadeType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
@@ -33,7 +33,7 @@ public class Post {
 
     private String category;
 
-    @ManyToMany(cascade = { CascadeType.PERSIST, CascadeType.MERGE })
+    @ManyToMany
     @JoinTable(name = "post_tags", joinColumns = @JoinColumn(name = "post_id"), inverseJoinColumns = @JoinColumn(name = "tag_id"))
     private Set<Tag> tags = new HashSet<>();
 
@@ -67,10 +67,6 @@ public class Post {
         return id;
     }
 
-    public void setId(Long id) {
-        this.id = id;
-    }
-
     public String getTitle() {
         return title;
     }
@@ -96,7 +92,13 @@ public class Post {
     }
 
     public Set<Tag> getTags() {
-        return tags;
+        return Collections.unmodifiableSet(tags);
+    }
+
+    public void addTag(Tag tag) {
+        if (tag != null) {
+            this.tags.add(tag);
+        }
     }
 
     public LocalDateTime getCreatedAt() {

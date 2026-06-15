@@ -66,8 +66,8 @@ public class PostService {
 
     private void convertStringsToTag(List<String> tagNames, Post post) {
         for (String tagName : tagNames) {
-            Tag tag = tagRepository.findByName(tagName).orElseGet(() -> new Tag(tagName));
-            post.getTags().add(tag);
+            Tag tag = tagRepository.findByName(tagName).orElseGet(() -> tagRepository.save(new Tag(tagName)));
+            post.addTag(tag);
         }
     }
 }
