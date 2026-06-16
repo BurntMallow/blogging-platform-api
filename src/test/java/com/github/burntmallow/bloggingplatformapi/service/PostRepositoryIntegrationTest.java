@@ -2,6 +2,8 @@ package com.github.burntmallow.bloggingplatformapi.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.Optional;
+
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
@@ -73,11 +75,7 @@ public class PostRepositoryIntegrationTest {
 
     @Test
     void shouldUpdateAllMutableFieldsOnPutLifecycle() {
-        Post originalPost = new Post("Original Title", "Original Content", "Technology");
-        Post savedPost = postRepository.saveAndFlush(originalPost);
-        Long postId = savedPost.getId();
-
-        entityManager.clear();
+        Long postId = populatePostAndReturnId(TITLE, CONTENT, CATEGORY, OLD_TAG_NAME, NEW_TAG_NAME);
 
         Post postToUpdate = postRepository.findById(postId).orElseThrow();
         postToUpdate.setTitle("My Updated Blog Post");
@@ -89,6 +87,37 @@ public class PostRepositoryIntegrationTest {
         Post updatedPost = postRepository.findById(postId).orElseThrow();
         assertThat(updatedPost.getTitle()).isEqualTo("My Updated Blog Post");
         assertThat(updatedPost.getContent()).isEqualTo("This is the updated content of my first blog post.");
-        assertThat(updatedPost.getCategory()).isEqualTo("Technology");
+        assertThat(updatedPost.getCategory()).isEqualTo("Category");
+    }
+
+    @Test
+    void shouldDeletePostWhenIdExist() {
+        Long postId = populatePostAndReturnId(TITLE, CONTENT, CATEGORY, OLD_TAG_NAME, NEW_TAG_NAME);
+        
+        postRepository.deleteById(postId);
+        postRepository.flush();
+        
+        assertThat(postRepository.findById(postId)).isEmpty();
+    }
+
+    @Test
+    void shouldReturnEmptyOptionalWhenPostDoesNotExist() {
+        Optional<Post> result = postRepository.findById(999L);
+
+        assertThat(result).isEmpty();
+    }
+
+    Long populatePostAndReturnId(String title, String content, String category, String... tags) {
+        Post originalPost = new Post(title, content, category);
+        for (String tag : tags) {
+            Tag savedTag = tagRepository.save(new Tag(tag));
+            originalPost.addTag(savedTag);
+        }
+        Post savedPost = postRepository.saveAndFlush(originalPost);
+        Long postId = savedPost.getId();
+        
+        entityManager.clear();
+        
+        return postId;
     }
 }
