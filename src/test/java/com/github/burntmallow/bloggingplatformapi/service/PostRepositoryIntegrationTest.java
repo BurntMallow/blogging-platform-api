@@ -1,8 +1,6 @@
 package com.github.burntmallow.bloggingplatformapi.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -52,7 +50,10 @@ public class PostRepositoryIntegrationTest {
         Post retrievedPost = postRepository.findById(savedPostId)
                 .orElseThrow(() -> new AssertionError("Post was not saved to database"));
 
-        assertEquals(2, retrievedPost.getTags().size(), "Post should have exactly 2 tags attached");
+        assertThat(retrievedPost.getTags())
+                .hasSize(2)
+                .extracting(Tag::getName)
+                .containsExactlyInAnyOrder(OLD_TAG_NAME, NEW_TAG_NAME);
 
         Tag verifiedExistingTag = retrievedPost.getTags().stream()
                 .filter(t -> t.getName().equals(OLD_TAG_NAME))
@@ -64,11 +65,30 @@ public class PostRepositoryIntegrationTest {
                 .findFirst()
                 .orElseThrow();
 
-        assertEquals(expectedExistingTagId, verifiedExistingTag.getId(),
-                "The database must reuse the exact database ID for the existing tag row");
-        assertNotNull(verifiedNewTag.getId(),
-                "The database must generate a brand new primary key ID for the new tag");
-        assertNotEquals(expectedExistingTagId, verifiedNewTag.getId(),
-                "The new tag must have its own distinct primary key ID");
+        assertThat(verifiedExistingTag.getId()).isEqualTo(expectedExistingTagId);
+        assertThat(verifiedNewTag.getId())
+                .isNotNull()
+                .isNotEqualTo(expectedExistingTagId);
+    }
+
+    @Test
+    void shouldUpdateAllMutableFieldsOnPutLifecycle() {
+        Post originalPost = new Post("Original Title", "Original Content", "Technology");
+        Post savedPost = postRepository.saveAndFlush(originalPost);
+        Long postId = savedPost.getId();
+
+        entityManager.clear();
+
+        Post postToUpdate = postRepository.findById(postId).orElseThrow();
+        postToUpdate.setTitle("My Updated Blog Post");
+        postToUpdate.setContent("This is the updated content of my first blog post.");
+
+        postRepository.saveAndFlush(postToUpdate);
+        entityManager.clear();
+
+        Post updatedPost = postRepository.findById(postId).orElseThrow();
+        assertThat(updatedPost.getTitle()).isEqualTo("My Updated Blog Post");
+        assertThat(updatedPost.getContent()).isEqualTo("This is the updated content of my first blog post.");
+        assertThat(updatedPost.getCategory()).isEqualTo("Technology");
     }
 }
