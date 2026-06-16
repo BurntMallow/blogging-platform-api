@@ -4,8 +4,10 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.github.burntmallow.bloggingplatformapi.dto.PostRequest;
 import com.github.burntmallow.bloggingplatformapi.dto.PostResponse;
@@ -26,10 +28,18 @@ public class PostService {
     }
 
     @Transactional
-    public PostResponse createPost(PostRequest newPostRequest) {
-        Post newPost = mapToNewPost(newPostRequest);
+    public PostResponse createPost(PostRequest postRequest) {
+        Post newPost = mapToNewPost(postRequest);
         Post savedPost = postRepository.save(newPost);
         return mapEntityToResponse(savedPost);
+    }
+
+    @Transactional
+    public PostResponse updatePost(PostRequest postRequest, Long id) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"));
+        updateExistingPost(postRequest, post);
+        return mapEntityToResponse(post);
     }
 
     private Post mapToNewPost(PostRequest postRequest) {
@@ -45,7 +55,7 @@ public class PostService {
         existingPost.setTitle(postRequest.title());
         existingPost.setContent(postRequest.content());
         existingPost.setCategory(postRequest.category());
-        existingPost.getTags().clear();
+        existingPost.clearTags();
         convertStringsToTag(postRequest.tags(), existingPost);
     }
 

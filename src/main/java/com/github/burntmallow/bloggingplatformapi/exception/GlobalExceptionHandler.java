@@ -5,8 +5,10 @@ import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 @RestControllerAdvice
@@ -21,5 +23,11 @@ public class GlobalExceptionHandler {
                         (existingValue, newValue) -> existingValue));
 
         return ResponseEntity.badRequest().body(errors);
+    }
+
+    @ExceptionHandler(ResponseStatusException.class)
+    public ResponseEntity<Map<String, String>> handleNotFoundException(ResponseStatusException ex) {
+        Map<String, String> error = Map.of("error", Objects.requireNonNull(ex.getReason()));
+        return ResponseEntity.status(ex.getStatusCode()).body(error);
     }
 }

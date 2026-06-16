@@ -101,6 +101,10 @@ public class Post {
         }
     }
 
+    public void clearTags() {
+        this.tags.clear();
+    }
+
     public LocalDateTime getCreatedAt() {
         return createdAt;
     }

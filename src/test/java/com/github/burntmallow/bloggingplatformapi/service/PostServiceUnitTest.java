@@ -1,7 +1,7 @@
 package com.github.burntmallow.bloggingplatformapi.service;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -14,7 +14,9 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.http.HttpStatus;
 import org.springframework.test.util.ReflectionTestUtils;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.github.burntmallow.bloggingplatformapi.dto.PostRequest;
 import com.github.burntmallow.bloggingplatformapi.dto.PostResponse;
@@ -46,7 +48,7 @@ public class PostServiceUnitTest {
     @Test
     void shouldCreatePostByReusingExistingTagsAndPersistingNewTags() {
         PostRequest request = createDefaultRequest();
-        Tag existingTag = new Tag(OLD_TAG_NAME);
+        Tag existingTag = createExistingTag();
 
         when(tagRepository.findByName(OLD_TAG_NAME)).thenReturn(Optional.of(existingTag));
         when(tagRepository.findByName(NEW_TAG_NAME)).thenReturn(Optional.empty());
@@ -58,17 +60,17 @@ public class PostServiceUnitTest {
         when(postRepository.save(any(Post.class))).thenAnswer(invocation -> {
             Post internalNewPost = invocation.getArgument(0);
 
-            assertTrue(internalNewPost.getTags().contains(existingTag),
-                    "Service failed to reuse the existing database tag instance.");
+            assertThat(internalNewPost.getTags())
+                    .as("Service failed to reuse the existing database tag instance.")
+                    .contains(existingTag);
 
-            Tag createdTag = internalNewPost.getTags().stream()
-                    .filter(tag -> tag.getName().equals(NEW_TAG_NAME))
-                    .findFirst()
-                    .orElseThrow(
-                            () -> new AssertionError("The new tag '" + NEW_TAG_NAME + "' was not added to the post."));
-
-            assertEquals(NEW_TAG_ID, createdTag.getId(),
-                    "The new tag was not saved/managed before being attached to the post.");
+            assertThat(internalNewPost.getTags())
+                    .filteredOn(tag -> tag.getName().equals(NEW_TAG_NAME))
+                    .hasSize(1)
+                    .element(0)
+                    .extracting(Tag::getId)
+                    .as("The new tag was not saved/managed before being attached to the post.")
+                    .isEqualTo(NEW_TAG_ID);
 
             ReflectionTestUtils.setField(internalNewPost, "id", POST_ID);
             return internalNewPost;
@@ -76,8 +78,50 @@ public class PostServiceUnitTest {
 
         PostResponse response = postService.createPost(request);
 
-        assertEquals(createExpectedResponse(), response,
-                "The mapped PostResponse did not match the expected repository output values");
+        assertThat(response)
+                .as("The mapped PostResponse did not match the expected repository output values")
+                .isEqualTo(createExpectedResponse());
+    }
+
+    @Test
+    void shouldUpdatePostWhenRequestedPostExist() {
+        Post existingPost = createExistingPost();
+        PostRequest request = createDefaultRequest();
+        Tag existingTag = createExistingTag();
+
+        when(postRepository.findById(POST_ID)).thenReturn(Optional.of(existingPost));
+        when(tagRepository.findByName(OLD_TAG_NAME)).thenReturn(Optional.of(existingTag));
+        when(tagRepository.findByName(NEW_TAG_NAME)).thenReturn(Optional.empty());
+        when(tagRepository.save(any(Tag.class))).thenReturn(new Tag(NEW_TAG_NAME));
+
+        PostResponse response = postService.updatePost(request, POST_ID);
+
+        PostResponse expected = createExpectedResponse();
+        assertThat(response)
+                .as("The mapped PostResponse did not match the expected repository output values")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void shouldThrowResponseStatusExceptionWhenPostDoesNotExist() {
+        PostRequest request = createDefaultRequest();
+        when(postRepository.findById(POST_ID)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> postService.updatePost(request, POST_ID))
+                .isInstanceOf(ResponseStatusException.class)
+                .hasFieldOrPropertyWithValue("statusCode", HttpStatus.NOT_FOUND)
+                .hasMessageContaining("Blog post not found");
+    }
+
+    private Post createExistingPost() {
+        Post existingPost = new Post("Old Title", "Old content", "Old Category");
+        ReflectionTestUtils.setField(existingPost, "id", POST_ID);
+        existingPost.addTag(new Tag(OLD_TAG_NAME));
+        return existingPost;
+    }
+
+    private Tag createExistingTag() {
+        return new Tag(OLD_TAG_NAME);
     }
 
     private PostRequest createDefaultRequest() {
