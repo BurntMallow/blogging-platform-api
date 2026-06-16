@@ -2,27 +2,31 @@ package com.github.burntmallow.bloggingplatformapi.controller;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
-import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.ResultMatcher;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
+import org.springframework.web.server.ResponseStatusException;
 
 import com.github.burntmallow.bloggingplatformapi.dto.PostRequest;
 import com.github.burntmallow.bloggingplatformapi.dto.PostResponse;
 import com.github.burntmallow.bloggingplatformapi.service.PostService;
-
-import tools.jackson.databind.ObjectMapper;
 
 @WebMvcTest(PostController.class)
 public class PostControllerUnitTest {
@@ -30,69 +34,109 @@ public class PostControllerUnitTest {
     @Autowired
     private MockMvc mockMvc;
 
-    @Autowired
-    private ObjectMapper objectMapper;
-
     @MockitoBean
     private PostService postService;
 
-    @Test
-    void shouldCreatePostAndReturn201Created() throws Exception {
-        // Arrange
-        PostRequest request = new PostRequest("Title", "This is the content.", "Category", List.of("old", "new"));
-        PostResponse response = new PostResponse(1L, "Title", "This is the content.", "Category", Set.of("old", "new"),
-                null, null);
+    private static final String TITLE = "Title";
+    private static final String CONTENT = "This is the content.";
+    private static final String CATEGORY = "Category";
+    private static final String OLD_TAG_NAME = "old";
+    private static final String NEW_TAG_NAME = "new";
+    private static final Long POST_ID = 1L;
 
-        when(postService.createPost(any(PostRequest.class))).thenReturn(response);
+    private final String validRequestJson = """
+            {
+                "title": "Title",
+                "content": "This is the content.",
+                "category": "Category",
+                "tags": ["old", "new"]
+            }
+            """;
 
-        // Act & Assert
-        mockMvc.perform(post("/api/posts")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(objectMapper.writeValueAsString(request)))
-                .andExpect(status().isCreated())
-                .andExpect(jsonPath("$.id").value(1))
-                .andExpect(jsonPath("$.title").value("Title"))
-                .andExpect(jsonPath("$.content").value("This is the content."))
-                .andExpect(jsonPath("$.category").value("Category"))
-                .andExpect(jsonPath("$.tags").isArray())
-                .andExpect(jsonPath("$.tags").value(containsInAnyOrder("old", "new")));
+    private PostResponse createExpectedResponse() {
+        return new PostResponse(POST_ID, TITLE, CONTENT, CATEGORY, Set.of(OLD_TAG_NAME, NEW_TAG_NAME), null, null);
+    }
+
+    private void executeAndVerify(
+            MockHttpServletRequestBuilder requestBuilder,
+            String jsonPayload,
+            ResultMatcher expectedStatus,
+            ResultMatcher... expectedJsonPaths) throws Exception {
+
+        if (jsonPayload != null) {
+            requestBuilder.contentType(MediaType.APPLICATION_JSON).content(jsonPayload);
+        }
+
+        var responseActions = mockMvc.perform(requestBuilder).andExpect(expectedStatus);
+
+        for (ResultMatcher pathMatcher : expectedJsonPaths) {
+            responseActions.andExpect(pathMatcher);
+        }
     }
 
     @Test
-    void shouldReturn400BadRequestWhenRequestIsBlank() throws Exception {
-        String invalidRequestJson = """
-                {
-                }
-                """;
+    void shouldReturnSavedPostDetailsOnSuccess() throws Exception {
+        PostResponse expectedResponse = createExpectedResponse();
 
-        mockMvc.perform(post("/api/posts")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidRequestJson))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.title").value("Title is required"))
-                .andExpect(jsonPath("$.content").value("Content is required"))
-                .andExpect(jsonPath("$.category").value("Category is required"))
-                .andExpect(jsonPath("$.tags").value("At least one tag is required"));
+        when(postService.createPost(any(PostRequest.class))).thenReturn(expectedResponse);
+        when(postService.updatePost(any(PostRequest.class), eq(POST_ID))).thenReturn(expectedResponse);
+
+        ResultMatcher[] postDetailsAssertions = {
+                jsonPath("$.id").value(POST_ID),
+                jsonPath("$.title").value(TITLE),
+                jsonPath("$.content").value(CONTENT),
+                jsonPath("$.category").value(CATEGORY),
+                jsonPath("$.tags").isArray(),
+                jsonPath("$.tags").value(containsInAnyOrder(OLD_TAG_NAME, NEW_TAG_NAME))
+        };
+
+        executeAndVerify(post("/api/posts"), validRequestJson, status().isCreated(), postDetailsAssertions);
+        executeAndVerify(put("/api/posts/{id}", POST_ID), validRequestJson, status().isOk(), postDetailsAssertions);
+    }
+
+    @Test
+    void shouldReturn404WhenResourceNotFound() throws Exception {
+        ResultMatcher notFoundAssertion = jsonPath("$.error").value("Blog post not found");
+
+        when(postService.updatePost(any(PostRequest.class), eq(POST_ID)))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"));
+
+        executeAndVerify(put("/api/posts/{id}", POST_ID), validRequestJson, status().isNotFound(), notFoundAssertion);
+
+        verify(postService).updatePost(any(PostRequest.class), eq(POST_ID));
+    }
+
+    @Test
+    void shouldReturnSpecificErrorWhenTagIndexIsBlank() throws Exception {
+        String blankTagJson = """
+            {
+                "title": "Title",
+                "content": "This is valid content.",
+                "category": "Category",
+                "tags": ["test", " "]
+            }
+            """;
+        ResultMatcher blankTagAssertion = jsonPath("$.['tags[1]']").value("A tag cannot be blank");
+
+        executeAndVerify(post("/api/posts"), blankTagJson, status().isBadRequest(), blankTagAssertion);
+        executeAndVerify(put("/api/posts/{id}", POST_ID), blankTagJson, status().isBadRequest(), blankTagAssertion);
 
         verifyNoInteractions(postService);
     }
 
     @Test
-    void shouldReturn400BadRequestWhenTagisBlank() throws Exception {
-        String invalidRequestJson = """
-                {
-                    "title": "Title",
-                    "content": "This is valid content.",
-                    "category": "Category",
-                    "tags": ["test", " "]
-                }
-                """;
+    void shouldReturnAllFieldErrorsWhenPayloadIsEmpty() throws Exception {
+        String emptyPayloadJson = "{ }";
+        ResultMatcher[] missingFieldsAssertions = {
+                jsonPath("$.title").value("Title is required"),
+                jsonPath("$.content").value("Content is required"),
+                jsonPath("$.category").value("Category is required"),
+                jsonPath("$.tags").value("At least one tag is required")
+        };
 
-        mockMvc.perform(post("/api/posts")
-                .contentType(MediaType.APPLICATION_JSON)
-                .content(invalidRequestJson))
-                .andExpect(status().isBadRequest())
-                .andExpect(jsonPath("$.['tags[1]']").value("A tag cannot be blank"));
+        executeAndVerify(post("/api/posts"), emptyPayloadJson, status().isBadRequest(), missingFieldsAssertions);
+        executeAndVerify(put("/api/posts/{id}", POST_ID), emptyPayloadJson, status().isBadRequest(),
+                missingFieldsAssertions);
 
         verifyNoInteractions(postService);
     }
