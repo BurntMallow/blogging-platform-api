@@ -1,14 +1,17 @@
 package com.github.burntmallow.bloggingplatformapi.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
+import org.assertj.core.api.ThrowableAssert.ThrowingCallable;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
@@ -101,16 +104,39 @@ public class PostServiceUnitTest {
                 .as("The mapped PostResponse did not match the expected repository output values")
                 .isEqualTo(expected);
     }
-
+    
     @Test
-    void shouldThrowResponseStatusExceptionWhenPostDoesNotExist() {
+    void shouldThrowNotFoundWhenPostDoesNotExistOnUpdate() {
         PostRequest request = createDefaultRequest();
         when(postRepository.findById(POST_ID)).thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> postService.updatePost(request, POST_ID))
+        assertThatThrowsNotFound(
+                () -> postService.updatePost(request, POST_ID),
+                "Blog post not found");
+    }
+
+    @Test
+    void shouldDeletePostWhenRequestedPostExist() {
+        when(postRepository.existsById(POST_ID)).thenReturn(true);
+        doNothing().when(postRepository).deleteById(POST_ID);
+
+        assertThatCode(() -> postService.deletePost(POST_ID)).doesNotThrowAnyException();
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenPostDoesNotExistOnDelete() {
+        when(postRepository.existsById(POST_ID)).thenReturn(false);
+
+        assertThatThrowsNotFound(
+                () -> postService.deletePost(POST_ID),
+                "Blog post not found");
+    }
+
+    private void assertThatThrowsNotFound(ThrowingCallable methodCall, String expectedMessage) {
+        assertThatThrownBy(methodCall)
                 .isInstanceOf(ResponseStatusException.class)
                 .hasFieldOrPropertyWithValue("statusCode", HttpStatus.NOT_FOUND)
-                .hasMessageContaining("Blog post not found");
+                .hasMessageContaining(expectedMessage);
     }
 
     private Post createExistingPost() {

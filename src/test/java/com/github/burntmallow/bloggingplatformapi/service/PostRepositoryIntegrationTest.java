@@ -93,10 +93,10 @@ public class PostRepositoryIntegrationTest {
     @Test
     void shouldDeletePostWhenIdExist() {
         Long postId = populatePostAndReturnId(TITLE, CONTENT, CATEGORY, OLD_TAG_NAME, NEW_TAG_NAME);
-        
+
         postRepository.deleteById(postId);
         postRepository.flush();
-        
+
         assertThat(postRepository.findById(postId)).isEmpty();
     }
 
@@ -115,9 +115,9 @@ public class PostRepositoryIntegrationTest {
         }
         Post savedPost = postRepository.saveAndFlush(originalPost);
         Long postId = savedPost.getId();
-        
+
         entityManager.clear();
-        
+
         return postId;
     }
 }
