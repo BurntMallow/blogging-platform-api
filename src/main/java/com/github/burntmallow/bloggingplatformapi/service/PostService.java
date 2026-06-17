@@ -50,6 +50,13 @@ public class PostService {
         postRepository.deleteById(id);
     }
 
+    @Transactional
+    public PostResponse getPost(Long id) {
+        Post post = postRepository.findById(id)
+                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"));
+        return mapEntityToResponse(post);
+    }
+
     private Post mapToNewPost(PostRequest postRequest) {
         Post post = new Post();
         post.setTitle(postRequest.title());

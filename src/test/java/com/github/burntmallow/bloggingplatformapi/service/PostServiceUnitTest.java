@@ -104,7 +104,7 @@ public class PostServiceUnitTest {
                 .as("The mapped PostResponse did not match the expected repository output values")
                 .isEqualTo(expected);
     }
-    
+
     @Test
     void shouldThrowNotFoundWhenPostDoesNotExistOnUpdate() {
         PostRequest request = createDefaultRequest();
@@ -132,6 +132,28 @@ public class PostServiceUnitTest {
                 "Blog post not found");
     }
 
+    @Test
+    void shouldGetPostWhenRequestedPostExist() {
+        Post post = createDefaultPost();
+        when(postRepository.findById(POST_ID)).thenReturn(Optional.of(post));
+
+        PostResponse response = postService.getPost(POST_ID);
+
+        PostResponse expected = createExpectedResponse();
+        assertThat(response)
+                .as("The mapped PostResponse did not match the expected repository output values")
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void shouldThrowNotFoundWhenPostDoesNotExistOnGet() {
+        when(postRepository.findById(POST_ID)).thenReturn(Optional.empty());
+
+        assertThatThrowsNotFound(
+                () -> postService.getPost(POST_ID),
+                "Blog post not found");
+    }
+
     private void assertThatThrowsNotFound(ThrowingCallable methodCall, String expectedMessage) {
         assertThatThrownBy(methodCall)
                 .isInstanceOf(ResponseStatusException.class)
@@ -139,6 +161,16 @@ public class PostServiceUnitTest {
                 .hasMessageContaining(expectedMessage);
     }
 
+    // Matches createDefaultRequest and createExpectedResponse
+    private Post createDefaultPost() {
+        Post defaultPost = new Post(TITLE, CONTENT, CATEGORY);
+        ReflectionTestUtils.setField(defaultPost, "id", POST_ID);
+        defaultPost.addTag(new Tag(OLD_TAG_NAME));
+        defaultPost.addTag(new Tag(NEW_TAG_NAME));
+        return defaultPost;
+    }
+
+    // To be modified, does not match createDefaultRequest and createExpectedResponse
     private Post createExistingPost() {
         Post existingPost = new Post("Old Title", "Old content", "Old Category");
         ReflectionTestUtils.setField(existingPost, "id", POST_ID);
