@@ -2,6 +2,7 @@ package com.github.burntmallow.bloggingplatformapi.service;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.junit.jupiter.api.Test;
@@ -116,6 +117,70 @@ public class PostRepositoryIntegrationTest {
         assertThat(result).isPresent();
         assertThat(result.get().getTitle()).isEqualTo(TITLE);
         assertThat(result.get().getContent()).isEqualTo(CONTENT);
+    }
+
+    @Test
+    void shouldReturnAllPosts() {
+        Long postId1 = populatePostAndReturnId("First Title", "This is a content", CATEGORY, OLD_TAG_NAME);
+        Long postId2 = populatePostAndReturnId("Second Title", "This is a content too", CATEGORY, NEW_TAG_NAME);
+
+        List<Post> posts = postRepository.findAll();
+
+        assertThat(posts)
+                .hasSize(2)
+                .extracting(Post::getId)
+                .containsExactlyInAnyOrder(postId1, postId2);
+    }
+
+    @Test
+    void shouldReturnPostsContainingTerm() {
+        Long postId1 = populatePostAndReturnId("First Title", "This is a content", CATEGORY, OLD_TAG_NAME);
+        Long postId2 = populatePostAndReturnId("Second Title", "This is a content too", CATEGORY, NEW_TAG_NAME);
+
+        List<Post> postsContainingCategory = postRepository.searchByTerm(CATEGORY);
+
+        assertThat(postsContainingCategory)
+                .hasSize(2)
+                .extracting(Post::getId)
+                .containsExactlyInAnyOrder(postId1, postId2);
+
+        entityManager.clear();
+
+        List<Post> postsContainingFirst = postRepository.searchByTerm("first");
+
+        assertThat(postsContainingFirst)
+                .hasSize(1)
+                .extracting(Post::getId)
+                .containsExactlyInAnyOrder(postId1);
+
+        entityManager.clear();
+
+        List<Post> postsContainingToo = postRepository.searchByTerm("too");
+
+        assertThat(postsContainingToo)
+                .hasSize(1)
+                .extracting(Post::getId)
+                .containsExactlyInAnyOrder(postId2);
+    }
+
+    @Test
+    void shouldReturnAllPostsWhenTermIsNullOrEmpty() {
+        Long postId1 = populatePostAndReturnId("First Title", "This is a content", CATEGORY, OLD_TAG_NAME);
+        Long postId2 = populatePostAndReturnId("Second Title", "This is a content too", CATEGORY, NEW_TAG_NAME);
+
+        List<Post> postsWithNull = postRepository.searchByTerm(null);
+        assertThat(postsWithNull)
+                .hasSize(2)
+                .extracting(Post::getId)
+                .containsExactlyInAnyOrder(postId1, postId2);
+
+        entityManager.clear();
+
+        List<Post> postsWithEmpty = postRepository.searchByTerm("");
+        assertThat(postsWithEmpty)
+                .hasSize(2)
+                .extracting(Post::getId)
+                .containsExactlyInAnyOrder(postId1, postId2);
     }
 
     Long populatePostAndReturnId(String title, String content, String category, String... tags) {
