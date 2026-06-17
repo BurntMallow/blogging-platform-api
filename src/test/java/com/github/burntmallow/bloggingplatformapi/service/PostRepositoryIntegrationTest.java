@@ -107,6 +107,17 @@ public class PostRepositoryIntegrationTest {
         assertThat(result).isEmpty();
     }
 
+    @Test
+    void shouldFindPostByIdWhenIdExists() {
+        Long postId = populatePostAndReturnId(TITLE, CONTENT, CATEGORY, OLD_TAG_NAME);
+
+        Optional<Post> result = postRepository.findById(postId);
+
+        assertThat(result).isPresent();
+        assertThat(result.get().getTitle()).isEqualTo(TITLE);
+        assertThat(result.get().getContent()).isEqualTo(CONTENT);
+    }
+
     Long populatePostAndReturnId(String title, String content, String category, String... tags) {
         Post originalPost = new Post(title, content, category);
         for (String tag : tags) {
