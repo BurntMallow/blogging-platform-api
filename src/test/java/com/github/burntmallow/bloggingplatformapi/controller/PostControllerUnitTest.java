@@ -3,11 +3,14 @@ package com.github.burntmallow.bloggingplatformapi.controller;
 import static org.hamcrest.Matchers.containsInAnyOrder;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -95,13 +98,23 @@ public class PostControllerUnitTest {
     }
 
     @Test
+    void shouldReturnNothingOnSuccessfulDelete() throws Exception {
+        doNothing().when(postService).deletePost(eq(POST_ID));
+
+        executeAndVerify(delete("/api/posts/{id}", POST_ID), null, status().isNoContent());
+    }
+
+    @Test
     void shouldReturn404WhenResourceNotFound() throws Exception {
         ResultMatcher notFoundAssertion = jsonPath("$.error").value("Blog post not found");
 
         when(postService.updatePost(any(PostRequest.class), eq(POST_ID)))
                 .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"));
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"))
+                .when(postService).deletePost(eq(POST_ID));
 
         executeAndVerify(put("/api/posts/{id}", POST_ID), validRequestJson, status().isNotFound(), notFoundAssertion);
+        executeAndVerify(delete("/api/posts/{id}", POST_ID), null, status().isNotFound(), notFoundAssertion);
 
         verify(postService).updatePost(any(PostRequest.class), eq(POST_ID));
     }
@@ -109,13 +122,13 @@ public class PostControllerUnitTest {
     @Test
     void shouldReturnSpecificErrorWhenTagIndexIsBlank() throws Exception {
         String blankTagJson = """
-            {
-                "title": "Title",
-                "content": "This is valid content.",
-                "category": "Category",
-                "tags": ["test", " "]
-            }
-            """;
+                {
+                    "title": "Title",
+                    "content": "This is valid content.",
+                    "category": "Category",
+                    "tags": ["test", " "]
+                }
+                """;
         ResultMatcher blankTagAssertion = jsonPath("$.['tags[1]']").value("A tag cannot be blank");
 
         executeAndVerify(post("/api/posts"), blankTagJson, status().isBadRequest(), blankTagAssertion);
