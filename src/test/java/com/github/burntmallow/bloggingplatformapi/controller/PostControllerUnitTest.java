@@ -8,9 +8,10 @@ import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
-import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.delete;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -56,6 +57,151 @@ public class PostControllerUnitTest {
             }
             """;
 
+    // ==========================================
+    // SUCCESS PATH TESTS
+    // ==========================================
+
+    @Test
+    void shouldReturn201AndPostDetailsOnSuccessfulCreate() throws Exception {
+        when(postService.createPost(any(PostRequest.class))).thenReturn(createExpectedResponse());
+
+        executeAndVerify(post("/api/posts"), validRequestJson, status().isCreated(), getPostDetailsAssertions());
+        verify(postService).createPost(any(PostRequest.class));
+    }
+
+    @Test
+    void shouldReturn200AndPostDetailsOnSuccessfulUpdate() throws Exception {
+        when(postService.updatePost(any(PostRequest.class), eq(POST_ID))).thenReturn(createExpectedResponse());
+
+        executeAndVerify(put("/api/posts/{id}", POST_ID), validRequestJson, status().isOk(),
+                getPostDetailsAssertions());
+        verify(postService).updatePost(any(PostRequest.class), eq(POST_ID));
+    }
+
+    @Test
+    void shouldReturn200AndPostDetailsOnSuccessfulGet() throws Exception {
+        when(postService.getPost(eq(POST_ID))).thenReturn(createExpectedResponse());
+
+        executeAndVerify(get("/api/posts/{id}", POST_ID), null, status().isOk(), getPostDetailsAssertions());
+        verify(postService).getPost(eq(POST_ID));
+    }
+
+    @Test
+    void shouldReturn204OnSuccessfulDelete() throws Exception {
+        doNothing().when(postService).deletePost(eq(POST_ID));
+
+        executeAndVerify(delete("/api/posts/{id}", POST_ID), null, status().isNoContent());
+        verify(postService).deletePost(eq(POST_ID));
+    }
+
+    // ==========================================
+    // 404 NOT FOUND ERROR TESTS
+    // ==========================================
+
+    @Test
+    void shouldReturn404WhenGetResourceNotFound() throws Exception {
+        when(postService.getPost(eq(POST_ID)))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"));
+
+        executeAndVerify(get("/api/posts/{id}", POST_ID), null, status().isNotFound(), getNotFoundAssertion());
+        verify(postService).getPost(eq(POST_ID));
+    }
+
+    @Test
+    void shouldReturn404WhenUpdateResourceNotFound() throws Exception {
+        when(postService.updatePost(any(PostRequest.class), eq(POST_ID)))
+                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"));
+
+        executeAndVerify(put("/api/posts/{id}", POST_ID), validRequestJson, status().isNotFound(),
+                getNotFoundAssertion());
+        verify(postService).updatePost(any(PostRequest.class), eq(POST_ID));
+    }
+
+    @Test
+    void shouldReturn404WhenDeleteResourceNotFound() throws Exception {
+        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"))
+                .when(postService).deletePost(eq(POST_ID));
+
+        executeAndVerify(delete("/api/posts/{id}", POST_ID), null, status().isNotFound(), getNotFoundAssertion());
+        verify(postService).deletePost(eq(POST_ID));
+    }
+
+    // ==========================================
+    // VALIDATION ERROR TESTS
+    // ==========================================
+
+    @Test
+    void shouldReturnSpecificErrorWhenCreatePayloadHasBlankTagIndex() throws Exception {
+        String blankTagJson = createBlankTagJson();
+
+        executeAndVerify(post("/api/posts"), blankTagJson, status().isBadRequest(), getBlankTagAssertion());
+        verifyNoInteractions(postService);
+    }
+
+    @Test
+    void shouldReturnSpecificErrorWhenUpdatePayloadHasBlankTagIndex() throws Exception {
+        String blankTagJson = createBlankTagJson();
+
+        executeAndVerify(put("/api/posts/{id}", POST_ID), blankTagJson, status().isBadRequest(),
+                getBlankTagAssertion());
+        verifyNoInteractions(postService);
+    }
+
+    @Test
+    void shouldReturnAllFieldErrorsWhenCreatePayloadIsEmpty() throws Exception {
+        executeAndVerify(post("/api/posts"), "{ }", status().isBadRequest(), getMissingFieldsAssertions());
+        verifyNoInteractions(postService);
+    }
+
+    @Test
+    void shouldReturnAllFieldErrorsWhenUpdatePayloadIsEmpty() throws Exception {
+        executeAndVerify(put("/api/posts/{id}", POST_ID), "{ }", status().isBadRequest(), getMissingFieldsAssertions());
+        verifyNoInteractions(postService);
+    }
+
+    // ==========================================
+    // REUSABLE REFACTORED ASSERTIONS & HELPERS
+    // ==========================================
+
+    private ResultMatcher[] getPostDetailsAssertions() {
+        return new ResultMatcher[] {
+                jsonPath("$.id").value(POST_ID),
+                jsonPath("$.title").value(TITLE),
+                jsonPath("$.content").value(CONTENT),
+                jsonPath("$.category").value(CATEGORY),
+                jsonPath("$.tags").isArray(),
+                jsonPath("$.tags").value(containsInAnyOrder(OLD_TAG_NAME, NEW_TAG_NAME))
+        };
+    }
+
+    private ResultMatcher getNotFoundAssertion() {
+        return jsonPath("$.error").value("Blog post not found");
+    }
+
+    private ResultMatcher getBlankTagAssertion() {
+        return jsonPath("$.['tags[1]']").value("A tag cannot be blank");
+    }
+
+    private ResultMatcher[] getMissingFieldsAssertions() {
+        return new ResultMatcher[] {
+                jsonPath("$.title").value("Title is required"),
+                jsonPath("$.content").value("Content is required"),
+                jsonPath("$.category").value("Category is required"),
+                jsonPath("$.tags").value("At least one tag is required")
+        };
+    }
+
+    private String createBlankTagJson() {
+        return """
+                {
+                    "title": "Title",
+                    "content": "This is valid content.",
+                    "category": "Category",
+                    "tags": ["test", " "]
+                }
+                """;
+    }
+
     private PostResponse createExpectedResponse() {
         return new PostResponse(POST_ID, TITLE, CONTENT, CATEGORY, Set.of(OLD_TAG_NAME, NEW_TAG_NAME), null, null);
     }
@@ -72,85 +218,10 @@ public class PostControllerUnitTest {
 
         var responseActions = mockMvc.perform(requestBuilder).andExpect(expectedStatus);
 
-        for (ResultMatcher pathMatcher : expectedJsonPaths) {
-            responseActions.andExpect(pathMatcher);
+        if (expectedJsonPaths != null) {
+            for (ResultMatcher pathMatcher : expectedJsonPaths) {
+                responseActions.andExpect(pathMatcher);
+            }
         }
-    }
-
-    @Test
-    void shouldReturnSavedPostDetailsOnSuccess() throws Exception {
-        PostResponse expectedResponse = createExpectedResponse();
-
-        when(postService.createPost(any(PostRequest.class))).thenReturn(expectedResponse);
-        when(postService.updatePost(any(PostRequest.class), eq(POST_ID))).thenReturn(expectedResponse);
-
-        ResultMatcher[] postDetailsAssertions = {
-                jsonPath("$.id").value(POST_ID),
-                jsonPath("$.title").value(TITLE),
-                jsonPath("$.content").value(CONTENT),
-                jsonPath("$.category").value(CATEGORY),
-                jsonPath("$.tags").isArray(),
-                jsonPath("$.tags").value(containsInAnyOrder(OLD_TAG_NAME, NEW_TAG_NAME))
-        };
-
-        executeAndVerify(post("/api/posts"), validRequestJson, status().isCreated(), postDetailsAssertions);
-        executeAndVerify(put("/api/posts/{id}", POST_ID), validRequestJson, status().isOk(), postDetailsAssertions);
-    }
-
-    @Test
-    void shouldReturnNothingOnSuccessfulDelete() throws Exception {
-        doNothing().when(postService).deletePost(eq(POST_ID));
-
-        executeAndVerify(delete("/api/posts/{id}", POST_ID), null, status().isNoContent());
-    }
-
-    @Test
-    void shouldReturn404WhenResourceNotFound() throws Exception {
-        ResultMatcher notFoundAssertion = jsonPath("$.error").value("Blog post not found");
-
-        when(postService.updatePost(any(PostRequest.class), eq(POST_ID)))
-                .thenThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"));
-        doThrow(new ResponseStatusException(HttpStatus.NOT_FOUND, "Blog post not found"))
-                .when(postService).deletePost(eq(POST_ID));
-
-        executeAndVerify(put("/api/posts/{id}", POST_ID), validRequestJson, status().isNotFound(), notFoundAssertion);
-        executeAndVerify(delete("/api/posts/{id}", POST_ID), null, status().isNotFound(), notFoundAssertion);
-
-        verify(postService).updatePost(any(PostRequest.class), eq(POST_ID));
-    }
-
-    @Test
-    void shouldReturnSpecificErrorWhenTagIndexIsBlank() throws Exception {
-        String blankTagJson = """
-                {
-                    "title": "Title",
-                    "content": "This is valid content.",
-                    "category": "Category",
-                    "tags": ["test", " "]
-                }
-                """;
-        ResultMatcher blankTagAssertion = jsonPath("$.['tags[1]']").value("A tag cannot be blank");
-
-        executeAndVerify(post("/api/posts"), blankTagJson, status().isBadRequest(), blankTagAssertion);
-        executeAndVerify(put("/api/posts/{id}", POST_ID), blankTagJson, status().isBadRequest(), blankTagAssertion);
-
-        verifyNoInteractions(postService);
-    }
-
-    @Test
-    void shouldReturnAllFieldErrorsWhenPayloadIsEmpty() throws Exception {
-        String emptyPayloadJson = "{ }";
-        ResultMatcher[] missingFieldsAssertions = {
-                jsonPath("$.title").value("Title is required"),
-                jsonPath("$.content").value("Content is required"),
-                jsonPath("$.category").value("Category is required"),
-                jsonPath("$.tags").value("At least one tag is required")
-        };
-
-        executeAndVerify(post("/api/posts"), emptyPayloadJson, status().isBadRequest(), missingFieldsAssertions);
-        executeAndVerify(put("/api/posts/{id}", POST_ID), emptyPayloadJson, status().isBadRequest(),
-                missingFieldsAssertions);
-
-        verifyNoInteractions(postService);
     }
 }
