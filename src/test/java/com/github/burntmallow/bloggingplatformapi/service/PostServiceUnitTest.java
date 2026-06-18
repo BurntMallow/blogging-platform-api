@@ -4,9 +4,11 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.when;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -36,7 +38,11 @@ public class PostServiceUnitTest {
     private static final String CATEGORY = "Category";
     private static final String OLD_TAG_NAME = "old";
     private static final String NEW_TAG_NAME = "new";
-    private static final Long POST_ID = 1L;
+    private static final String OLD_TITLE = "Old Title";
+    private static final String OLD_CONTENT = "This old content.";
+    private static final String OLD_CATEGORY = "Old Category";
+    private static final Long OLD_POST_ID = 2L;
+    private static final Long POST_ID = 2L;
     private static final Long NEW_TAG_ID = 2L;
 
     @Mock
@@ -154,6 +160,60 @@ public class PostServiceUnitTest {
                 "Blog post not found");
     }
 
+    @Test
+    void shouldReturnAllPostsWhenTermIsNullAndPostsExist() {
+        Post post1 = createExistingPost();
+        Post post2 = createDefaultPost();
+        when(postRepository.findAll()).thenReturn(List.of(post1, post2));
+
+        List<PostResponse> response = postService.getAllPostsContainingTerm(null);
+
+        List<PostResponse> expected = List.of(createExpectedResponseForExistingPost(), createExpectedResponse());
+        assertThat(response)
+                .isEqualTo(expected);
+    }
+
+    @Test
+    void shouldReturnEmptyListWhenTermIsNullAndNoPostsExist() {
+        List<Post> emptyList = new ArrayList<>();
+        when(postRepository.findAll()).thenReturn(emptyList);
+
+        List<PostResponse> response = postService.getAllPostsContainingTerm(null);
+        assertThat(response).isEmpty();
+    }
+    @Test
+    void shouldReturnAllPostsWhenTermIsBlankAndPostsExist() {
+        Post post1 = createExistingPost();
+        Post post2 = createDefaultPost();
+        when(postRepository.findAll()).thenReturn(List.of(post1, post2));
+
+        List<PostResponse> response = postService.getAllPostsContainingTerm(" ");
+
+        List<PostResponse> expected = List.of(createExpectedResponseForExistingPost(), createExpectedResponse());
+        assertThat(response).isEqualTo(expected);
+    }
+
+    @Test
+    void shouldReturnMatchingPostsWhenTermMatchesRecords() {
+        Post post = createExistingPost();
+        when(postRepository.searchByTerm(anyString())).thenReturn(List.of(post));
+
+        List<PostResponse> response = postService.getAllPostsContainingTerm("Old");
+
+        List<PostResponse> expected = List.of(createExpectedResponseForExistingPost());
+        assertThat(response).isEqualTo(expected);
+    }
+
+    @Test
+    void sshouldReturnEmptyListWhenTermMatchesNoRecords() {
+        List<Post> emptyList = new ArrayList<>();
+        when(postRepository.searchByTerm(anyString())).thenReturn(emptyList);
+
+        List<PostResponse> response = postService.getAllPostsContainingTerm("nonexistent");
+        assertThat(response).isEmpty();
+    }
+
+
     private void assertThatThrowsNotFound(ThrowingCallable methodCall, String expectedMessage) {
         assertThatThrownBy(methodCall)
                 .isInstanceOf(ResponseStatusException.class)
@@ -170,10 +230,10 @@ public class PostServiceUnitTest {
         return defaultPost;
     }
 
-    // To be modified, does not match createDefaultRequest and createExpectedResponse
+    // To be modified, matches createExpectedResponseForExistingPost
     private Post createExistingPost() {
-        Post existingPost = new Post("Old Title", "Old content", "Old Category");
-        ReflectionTestUtils.setField(existingPost, "id", POST_ID);
+        Post existingPost = new Post(OLD_TITLE, OLD_CONTENT, OLD_CATEGORY);
+        ReflectionTestUtils.setField(existingPost, "id", OLD_POST_ID);
         existingPost.addTag(new Tag(OLD_TAG_NAME));
         return existingPost;
     }
@@ -188,5 +248,9 @@ public class PostServiceUnitTest {
 
     private PostResponse createExpectedResponse() {
         return new PostResponse(POST_ID, TITLE, CONTENT, CATEGORY, Set.of(OLD_TAG_NAME, NEW_TAG_NAME), null, null);
+    }
+
+    private PostResponse createExpectedResponseForExistingPost() {
+        return new PostResponse(OLD_POST_ID, OLD_TITLE, OLD_CONTENT, OLD_CATEGORY, Set.of(OLD_TAG_NAME), null, null);
     }
 }

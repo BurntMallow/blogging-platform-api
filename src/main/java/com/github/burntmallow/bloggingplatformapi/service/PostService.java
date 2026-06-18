@@ -57,6 +57,18 @@ public class PostService {
         return mapEntityToResponse(post);
     }
 
+    @Transactional(readOnly = true)
+    public List<PostResponse> getAllPostsContainingTerm(String term) {
+        List<Post> posts;
+        if (term == null || term.isBlank()) {
+            posts = postRepository.findAll();
+        } else {
+            posts = postRepository.searchByTerm(term);
+        }
+
+        return posts.stream().map(this::mapEntityToResponse).toList();
+    }
+
     private Post mapToNewPost(PostRequest postRequest) {
         Post post = new Post();
         post.setTitle(postRequest.title());
