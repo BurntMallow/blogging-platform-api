@@ -1,6 +1,7 @@
 package com.github.burntmallow.bloggingplatformapi.controller;
 
 import static org.hamcrest.Matchers.containsInAnyOrder;
+import static org.hamcrest.Matchers.hasSize;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -15,6 +16,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.util.List;
 import java.util.Set;
 
 import org.junit.jupiter.api.Test;
@@ -84,6 +86,46 @@ public class PostControllerUnitTest {
 
         executeAndVerify(get("/api/posts/{id}", POST_ID), null, status().isOk(), getPostDetailsAssertions());
         verify(postService).getPost(eq(POST_ID));
+    }
+
+    @Test
+    void shouldReturn200AndPostsDetailsOnGetAll() throws Exception {
+        when(postService.getAllPostsContainingTerm(null)).thenReturn(List.of(createExpectedResponse()));
+
+        executeAndVerify(get("/api/posts"), null, status().isOk(), getAllPostsDetailsAssertions());
+        verify(postService).getAllPostsContainingTerm(null);
+    }
+
+    @Test
+    void shouldReturn200AndPostDetailsOnGetAllContainingTerm() throws Exception {
+        when(postService.getAllPostsContainingTerm("old")).thenReturn(List.of(createExpectedResponse()));
+
+        executeAndVerify(get("/api/posts?term=old"), null, status().isOk(), getAllPostsDetailsAssertions());
+        verify(postService).getAllPostsContainingTerm("old");
+    }
+
+    @Test
+    void shouldReturn200AndPostDetailsOnGetAllContainingTermBlank() throws Exception {
+        when(postService.getAllPostsContainingTerm("")).thenReturn(List.of(createExpectedResponse()));
+
+        executeAndVerify(get("/api/posts?term="), null, status().isOk(), getAllPostsDetailsAssertions());
+        verify(postService).getAllPostsContainingTerm("");
+    }
+
+    @Test
+    void shouldReturn200AndEmptyListOnGetAllContainingTerm() throws Exception {
+        when(postService.getAllPostsContainingTerm("nonexistent")).thenReturn(List.of());
+
+        executeAndVerify(get("/api/posts?term=nonexistent"), null, status().isOk(), jsonPath("$", hasSize(0)));
+        verify(postService).getAllPostsContainingTerm("nonexistent");
+    }
+
+    @Test
+    void shouldReturn200AndEmptyListOnGetAllEmptyDatabase() throws Exception {
+        when(postService.getAllPostsContainingTerm(null)).thenReturn(List.of());
+
+        executeAndVerify(get("/api/posts"), null, status().isOk(), jsonPath("$", hasSize(0)));
+        verify(postService).getAllPostsContainingTerm(null);
     }
 
     @Test
@@ -171,6 +213,18 @@ public class PostControllerUnitTest {
                 jsonPath("$.category").value(CATEGORY),
                 jsonPath("$.tags").isArray(),
                 jsonPath("$.tags").value(containsInAnyOrder(OLD_TAG_NAME, NEW_TAG_NAME))
+        };
+    }
+
+    private ResultMatcher[] getAllPostsDetailsAssertions() {
+        return new ResultMatcher[] {
+                jsonPath("$", hasSize(1)),
+                jsonPath("$[0].id").value(POST_ID),
+                jsonPath("$[0].title").value(TITLE),
+                jsonPath("$[0].content").value(CONTENT),
+                jsonPath("$[0].category").value(CATEGORY),
+                jsonPath("$[0].tags").isArray(),
+                jsonPath("$[0].tags").value(containsInAnyOrder(OLD_TAG_NAME, NEW_TAG_NAME))
         };
     }
 

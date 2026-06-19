@@ -8,11 +8,14 @@ import com.github.burntmallow.bloggingplatformapi.service.PostService;
 
 import jakarta.validation.Valid;
 
+import java.util.List;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -50,6 +53,12 @@ public class PostController {
     public ResponseEntity<PostResponse> getPost(@PathVariable Long id) {
         PostResponse getPost = postService.getPost(id);
         return new ResponseEntity<PostResponse>(getPost, HttpStatus.OK);
+    }
+
+    @GetMapping()
+    public ResponseEntity<List<PostResponse>> getPostsContainingTerm(@RequestParam(required = false) String term) {
+        List<PostResponse> getPosts = postService.getAllPostsContainingTerm(term);
+        return new ResponseEntity<List<PostResponse>>(getPosts, HttpStatus.OK);
     }
 
 }
