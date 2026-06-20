@@ -8,7 +8,9 @@ import java.util.Optional;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.boot.jpa.test.autoconfigure.TestEntityManager;
+import org.springframework.test.context.ActiveProfiles;
 
 import com.github.burntmallow.bloggingplatformapi.entity.Post;
 import com.github.burntmallow.bloggingplatformapi.entity.Tag;
@@ -16,6 +18,8 @@ import com.github.burntmallow.bloggingplatformapi.repository.PostRepository;
 import com.github.burntmallow.bloggingplatformapi.repository.TagRepository;
 
 @DataJpaTest
+@ActiveProfiles("test")
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 public class PostRepositoryIntegrationTest {
 
     private static final String TITLE = "Title";
