@@ -12,13 +12,18 @@
 	<artifactId>blogging-platform-api</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
 	<name>blogging-platform-api</name>
-	<description/>
-	<url/>
+	<description>Containerized REST API for a Blogging Platform built with Spring Boot 4 and PostgreSQL</description>
+	<url>https://github.com/burntmallow/blogging-platform-api</url>
 	<licenses>
 		<license/>
 	</licenses>
 	<developers>
-		<developer/>
+		<developer>
+			<name>Cyril Agustin</name>
+			<email>agustincyrilg@gmail.com</email>
+			<organization>burntmallow</organization>
+			<organizationUrl>https://github.com/burntmallow</organizationUrl>
+		</developer>
 	</developers>
 	<scm>
 		<connection/>
@@ -28,6 +33,8 @@
 	</scm>
 	<properties>
 		<java.version>21</java.version>
+		<maven.compiler.source>21</maven.compiler.source>
+		<maven.compiler.target>21</maven.compiler.target>
 	</properties>
 	<dependencies>
 
@@ -76,6 +83,11 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
+				<configuration>
+					<layers>
+						<enabled>true</enabled>
+					</layers>
+				</configuration>
 			</plugin>
 		</plugins>
 	</build>
