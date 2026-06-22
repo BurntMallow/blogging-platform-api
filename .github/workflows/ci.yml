@@ -1,0 +1,83 @@
+name: Java CI with Docker Compose
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+# Define global defaults for the workflow so you don't repeat yourself
+env:
+  DB_NAME: blogging_db
+  DB_USER: postgres
+  DB_PASSWORD: password
+
+jobs:
+  build-and-test:
+    runs-on: ubuntu-latest
+
+    services:
+      # Phase 1 Database: Host-level runner access
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: blogging_db
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: password
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d blogging_db"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Set up JDK 21
+      uses: actions/setup-java@v4
+      with:
+        java-version: '21'
+        distribution: 'temurin'
+        cache: 'maven'
+
+    - name: Grant execute permission for mvnw
+      run: chmod +x mvnw
+
+    # PHASE 1: Run standard unit & integration tests on the host runner
+    - name: Build and Run Tests
+      env:
+        # Connects using localhost because it's running directly on the runner host machine
+        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/blogging_db
+        SPRING_DATASOURCE_USERNAME: postgres
+        SPRING_DATASOURCE_PASSWORD: password
+      run: ./mvnw clean verify
+
+    # PHASE 2: Verify the exact Docker infrastructure works
+    - name: Verify Docker Compose Build Lifecycle
+      run: |
+        # 1. Package the JAR file that the Dockerfile expects to copy
+        ./mvnw package -DskipTests
+        
+        # 2. Spin up your docker compose environment.
+        # It automatically picks up DB_NAME, DB_USER, and DB_PASSWORD from the global env block!
+        docker compose up --build -d
+        
+        # 3. Wait up to 30 seconds for the app's internal health check to pass
+        echo "Waiting for blog-app container to pass health checks..."
+        for i in {1..6}; do
+          if [ "$(docker inspect --format='{{.State.Health.Status}}' blog-app)" = "healthy" ]; then
+            echo "✅ Containerized application is healthy!"
+            break
+          fi
+          echo "Still waiting..."
+          sleep 5
+        done
+        
+        # 4. Print container states to logs for debugging visibility
+        docker compose ps
+        
+        # 5. Clean teardown
+        docker compose down -v
