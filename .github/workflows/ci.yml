@@ -6,7 +6,6 @@ on:
   pull_request:
     branches: [ main, master ]
 
-# Define global defaults for the workflow so you don't repeat yourself
 env:
   DB_NAME: blogging_db
   DB_USER: postgres
@@ -30,21 +29,18 @@ jobs:
     - name: Grant execute permission for mvnw
       run: chmod +x mvnw
 
-    # PHASE 1: Run standard unit & integration tests on the host runner
+    # PHASE 1: Run your standard local H2 slice tests on the host runner for fast verification
     - name: Build and Run Tests
       run: ./mvnw clean verify
 
-    # PHASE 2: Verify the exact Docker infrastructure works
+    # PHASE 2: Verify the exact Docker infrastructure works using your Multi-Stage setup
     - name: Verify Docker Compose Build Lifecycle
       run: |
-        # 1. Package the JAR file that the Dockerfile expects to copy
-        ./mvnw package -DskipTests
-        
-        # 2. Spin up your docker compose environment.
-        # It automatically picks up DB_NAME, DB_USER, and DB_PASSWORD from the global env block!
+        # 1. Spin up the multi-stage compose environment.
+        # Docker handles the compilation internally; no manual JAR preparation needed!
         docker compose up --build -d
         
-        # 3. Wait up to 30 seconds for the app's internal health check to pass
+        # 2. Wait up to 30 seconds for the app's internal health check to pass
         echo "Waiting for blog-app container to pass health checks..."
         for i in {1..6}; do
           if [ "$(docker inspect --format='{{.State.Health.Status}}' blog-app)" = "healthy" ]; then
@@ -55,7 +51,7 @@ jobs:
           sleep 5
         done
         
-        # 4. Print container states to logs for debugging visibility
+        # 3. Print container states to logs for debugging visibility
         docker compose ps
 
     - name: Post-Build Cleanup

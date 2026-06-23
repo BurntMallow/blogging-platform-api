@@ -8,10 +8,10 @@ Containerized REST API for a Blogging Platform built with Spring Boot 4 and Post
 
 ### Prerequisites
 * [Docker Desktop](https://www.docker.com/products/docker-desktop/) (includes Docker Compose)
-* Postman or `curl` (for testing endpoints)
+* Postman, a browser, or `curl` (for testing endpoints)
 
 ### Spin Up the Application
-Because the Docker configuration uses a lightweight JRE runtime container, you must compile the application into a executable JAR file locally before spinning up the containers.
+The project utilizes a multi-stage Docker build. This means Java compilation, dependency downloading, and environment isolation happen entirely inside Docker. You do **not** need Java or Maven installed on your host machine to run this project.
 
 1. Clone the repository:
 ```bash
@@ -19,18 +19,16 @@ git clone https://github.com/burntmallow/blogging-platform-api.git
 cd blogging-platform-api
 ```
 
-2. Build and package the application JAR:
-```bash
-./mvnw clean package
-```
-
-3. Start the API and PostgreSQL database:
+2. Build and start the API and PostgreSQL database simultaneously:
 ```bash
 docker compose up --build
 ```
 
-The API will be up and running at http://localhost:8080.
-* Health Check: http://localhost:8080/actuator/health
+The API will automatically compile and spin up at http://localhost:8080.
+* **Health Check Probe:** http://localhost:8080/actuator/health
+
+> **Tip:** This command streams the application logs directly to your terminal window. To shut down the application and database containers safely at any time, simply press `Ctrl + C` inside this terminal. If you want to wipe the database and reset your practice data, run `docker compose down -v` afterward.
+
 ---
 
 ## Tech Stack & Architecture
