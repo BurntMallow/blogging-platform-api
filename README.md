@@ -60,6 +60,7 @@ This project utilizes **Spring Data JPA (Hibernate)** to manage the PostgreSQL s
 | Method | Endpoint | Description | Status Code |
 | :--- | :--- | :--- | :--- |
 | GET | /api/posts | Fetch all posts (Paginated) | 200 OK |
+| GET | /api/posts?term={term} | Search posts by title, content, or category | 200 OK |
 | GET | /api/posts/{id} | Fetch a single post by ID | 200 OK / 404 Not Found |
 | POST | /api/posts | Create a new post | 201 Created / 400 Bad Request |
 | PUT | /api/posts/{id} | Update an existing post | 200 OK / 404 Not Found |
