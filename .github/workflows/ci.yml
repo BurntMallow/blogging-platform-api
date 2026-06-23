@@ -16,22 +16,6 @@ jobs:
   build-and-test:
     runs-on: ubuntu-latest
 
-    services:
-      # Phase 1 Database: Host-level runner access
-      postgres:
-        image: postgres:16-alpine
-        env:
-          POSTGRES_DB: blogging_db
-          POSTGRES_USER: postgres
-          POSTGRES_PASSWORD: password
-        ports:
-          - 5432:5432
-        options: >-
-          --health-cmd "pg_isready -U postgres -d blogging_db"
-          --health-interval 5s
-          --health-timeout 5s
-          --health-retries 5
-
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
@@ -48,11 +32,6 @@ jobs:
 
     # PHASE 1: Run standard unit & integration tests on the host runner
     - name: Build and Run Tests
-      env:
-        # Connects using localhost because it's running directly on the runner host machine
-        SPRING_DATASOURCE_URL: jdbc:postgresql://localhost:5432/blogging_db
-        SPRING_DATASOURCE_USERNAME: postgres
-        SPRING_DATASOURCE_PASSWORD: password
       run: ./mvnw clean verify
 
     # PHASE 2: Verify the exact Docker infrastructure works
@@ -78,6 +57,8 @@ jobs:
         
         # 4. Print container states to logs for debugging visibility
         docker compose ps
-        
-        # 5. Clean teardown
+
+    - name: Post-Build Cleanup
+      if: always()
+      run: |
         docker compose down -v
