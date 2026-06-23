@@ -111,12 +111,15 @@ If a request fails validation, the API returns a `400 Bad Request` with a struct
 
 ## Running Tests
 
-Since the Docker container uses a lightweight JRE optimized to run the pre-built application JAR, tests must be executed locally on your host machine:
+Because the final production Docker image uses a stripped-down JRE runtime to minimize footprint size, it does not contain the tooling required to execute the test suite. 
+
+For fast feedback cycles during active development, tests should be executed locally on your host machine using the embedded Maven wrapper:
 
 ```bash
 ./mvnw test
 ```
 
+> **Note**: This executes Controller, Service, and Repository slice tests against an isolated, in-memory H2 database configured in PostgreSQL mode, meaning you do not need Docker containers running to validate your code logic.
 ---
 
 ## Tearing Down
