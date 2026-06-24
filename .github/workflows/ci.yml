@@ -33,6 +33,21 @@ jobs:
     - name: Build and Run Tests
       run: ./mvnw clean verify
 
+    - name: Generate JaCoCo Badge
+      id: jacoco
+      uses: cicirello/jacoco-badge-generator@v2
+      with:
+        generate-branches-badge: true
+        jacoco-csv-file: target/site/jacoco/jacoco.csv
+
+    - name: Commit and Push Badge
+      run: |
+        git config --local user.email "action@github.com"
+        git config --local user.name "GitHub Action"
+        git add .github/badges/*.svg
+        git commit -m "Update coverage badges [skip ci]" || exit 0
+        git push
+
     # PHASE 2: Verify the exact Docker infrastructure works using your Multi-Stage setup
     - name: Verify Docker Compose Build Lifecycle
       run: |

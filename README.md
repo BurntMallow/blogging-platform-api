@@ -1,5 +1,8 @@
 # Blogging Platform API
 
+![Coverage](.github/badges/jacoco.svg)
+![Branches](.github/badges/branches.svg)
+
 Containerized REST API for a Blogging Platform built with Spring Boot 4 and PostgreSQL
 
 ---
