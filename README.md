@@ -134,6 +134,15 @@ docker compose down -v
 
 ---
 
+## Next Steps & Production Roadmap
+
+To keep the initial scope of this roadmap.sh project focused, certain enterprise features were intentionally left out for rapid prototyping but are planned for the next iteration:
+
+1. **Spring Security Integration:** Implementing RBAC (Role-Based Access Control) via Spring Security + JWT to ensure `POST`, `PUT`, and `DELETE` endpoints are restricted to authenticated authors, while leaving `GET` endpoints completely public.
+2. **Database Migrations:** Transitioning from Hibernate's `ddl-auto=update` to a production-grade migration tool like **Flyway** or **Liquibase** for version-controlled schema evolution.
+
+---
+
 ## License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
